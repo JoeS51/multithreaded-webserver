@@ -5,7 +5,7 @@ use std::{
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: Option<mpsc::Sender<Job>>,
 }
 
 struct Worker {
@@ -19,11 +19,19 @@ impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
-                let job = receiver.lock().unwrap().recv().unwrap();
+                let message = receiver.lock().unwrap().recv();
 
-                println!("Worker {id} got a job; executing");
+                match message {
+                    Ok(job) => {
+                        println!("Worker {id} got a job");
 
-                job();
+                        job();
+                    }
+                    Err(_) => {
+                        println!("worker {id} disconnected");
+                        break;
+                    }
+                }
             }
         });
 
